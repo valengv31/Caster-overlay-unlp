@@ -1,0 +1,66 @@
+{
+  "teams": [
+    {
+      "name": "EQUIPO ROJO DEMO",
+      "color": "#FF0D0D",
+      "players": [
+        {
+          "role": "Top",
+          "realName": "Jugador de prueba 01",
+          "username": "TopNova"
+        },
+        {
+          "role": "Jungla",
+          "realName": "Jugador de prueba 02",
+          "username": "JungleTactix"
+        },
+        {
+          "role": "Mid",
+          "realName": "Jugador de prueba 03",
+          "username": "MidOrbit"
+        },
+        {
+          "role": "ADC",
+          "realName": "Jugador de prueba 04",
+          "username": "PixelCarry"
+        },
+        {
+          "role": "Support",
+          "realName": "Jugador de prueba 05",
+          "username": "LunaGuard"
+        }
+      ]
+    },
+    {
+      "name": "EQUIPO AZUL DEMO",
+      "color": "#2F80ED",
+      "players": [
+        {
+          "role": "Top",
+          "realName": "Jugador de prueba 06",
+          "username": "StoneVanguard"
+        },
+        {
+          "role": "Jungla",
+          "realName": "Jugador de prueba 07",
+          "username": "MapWhisper"
+        },
+        {
+          "role": "Mid",
+          "realName": "Jugador de prueba 08",
+          "username": "ArcaneVector"
+        },
+        {
+          "role": "ADC",
+          "realName": "Jugador de prueba 09",
+          "username": "RapidVolley"
+        },
+        {
+          "role": "Support",
+          "realName": "Jugador de prueba 10",
+          "username": "ShieldBloom"
+        }
+      ]
+    }
+  ]
+}

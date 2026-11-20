@@ -1,0 +1,512 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Roster Overlay - LoL</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;700&family=Rajdhani:wght@500;600;700&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --red:#FF0D0D;
+    --blue:#2F80ED;
+    --mint:#2FD4A2;
+    --green:#27B389;
+    --deep-green:#1C785C;
+    --black:#000000;
+    --ink:#050608;
+    --ink-2:#0B0E14;
+    --text:#F5F7FA;
+    --muted:#9AA5B4;
+    --team-a:var(--red);
+    --team-b:var(--blue);
+  }
+  *{box-sizing:border-box;}
+  html,body{
+    margin:0; padding:0; width:100%; height:100%;
+    background:transparent;
+    font-family:'Rajdhani',sans-serif;
+    overflow:hidden;
+  }
+  #app{
+    position:relative;
+    isolation:isolate;
+    width:100vw; height:100vh;
+    display:flex; align-items:center; justify-content:center;
+    gap:clamp(.65rem,1.8vw,2rem);
+    padding:4.8rem 3vw 1.3rem;
+  }
+  #app::before{
+    content:'';
+    position:absolute; z-index:0; pointer-events:none;
+    left:50%; top:9%; bottom:5%; width:2px;
+    transform:translateX(-50%);
+    background:linear-gradient(180deg, transparent 0%, rgba(255,13,13,.12) 10%, rgba(255,13,13,.82) 42%, rgba(47,128,237,.86) 58%, rgba(47,128,237,.12) 90%, transparent 100%);
+    box-shadow:0 0 12px rgba(255,255,255,.12);
+  }
+  #app.fade{ opacity:0; transition:opacity .22s ease; }
+  #app.show{ opacity:1; transition:opacity .28s ease; }
+
+  .live-badge{
+    position:absolute; z-index:5; top:1rem; left:50%; transform:translateX(-50%);
+    display:flex; align-items:center; gap:.55rem;
+    padding:.38rem .95rem;
+    border:1px solid rgba(255,255,255,.18);
+    border-radius:999px;
+    background:rgba(0,0,0,.82);
+    font-family:'Oswald',sans-serif; font-size:.76rem; letter-spacing:.18em;
+    color:var(--text); text-transform:uppercase;
+    box-shadow:0 0 22px rgba(0,0,0,.35);
+  }
+  .live-badge::after{
+    content:''; position:absolute; left:16%; right:16%; bottom:-2px; height:2px;
+    background:linear-gradient(90deg,var(--red),var(--blue));
+  }
+  .live-dot{
+    width:8px; height:8px; border-radius:50%; background:var(--red);
+    box-shadow:0 0 0 0 rgba(255,13,13,.6);
+    animation:pulse 1.6s infinite;
+  }
+  @keyframes pulse{
+    0%{ box-shadow:0 0 0 0 rgba(255,13,13,.55); }
+    70%{ box-shadow:0 0 0 7px rgba(255,13,13,0); }
+    100%{ box-shadow:0 0 0 0 rgba(255,13,13,0); }
+  }
+
+  .panel{
+    --accent:var(--team-a);
+    position:relative; z-index:1;
+    width:auto;
+    flex:1 1 0;
+    max-width:46rem;
+    min-width:0;
+    border-radius:11px;
+    background:linear-gradient(150deg, rgba(15,18,25,.97), rgba(0,0,0,.97) 72%);
+    border:1px solid color-mix(in srgb, var(--accent) 48%, transparent);
+    box-shadow:0 16px 38px rgba(0,0,0,.48), 0 0 24px color-mix(in srgb, var(--accent) 12%, transparent);
+    overflow:hidden;
+  }
+  .panel::before{
+    content:''; position:absolute; inset:0 0 auto; height:3px;
+    background:linear-gradient(90deg, transparent, var(--accent), transparent);
+    opacity:.95;
+  }
+  .panel-header{
+    position:relative;
+    padding:.95rem 1.3rem .78rem 1.5rem;
+    overflow:hidden;
+    border-bottom:1px solid rgba(255,255,255,.08);
+    background:linear-gradient(105deg, color-mix(in srgb, var(--accent) 17%, transparent), transparent 76%);
+  }
+  .panel-header::before{
+    content:''; position:absolute; left:0; top:0; bottom:0; width:5px;
+    background:var(--accent);
+    box-shadow:0 0 15px color-mix(in srgb, var(--accent) 52%, transparent);
+  }
+  .panel-header::after{
+    content:''; position:absolute; right:-1.4rem; top:-2.2rem; width:5rem; height:5rem;
+    border:1px solid color-mix(in srgb, var(--accent) 32%, transparent);
+    transform:rotate(45deg);
+  }
+  .team-name{
+    position:relative; z-index:1;
+    font-family:'Oswald',sans-serif; font-weight:700; font-size:clamp(1.05rem,1.25vw,1.38rem);
+    letter-spacing:.055em; text-transform:uppercase; color:var(--text);
+    margin:0;
+  }
+  .team-sub{
+    position:relative; z-index:1;
+    font-family:'JetBrains Mono',monospace; font-size:.61rem; color:var(--muted);
+    letter-spacing:.12em; margin:.18rem 0 0;
+  }
+  .divider{
+    display:flex; align-items:center; gap:.55rem; padding:.68rem 1.25rem .1rem;
+  }
+  .divider hr{
+    flex:1; border:none; height:1px;
+    background:linear-gradient(90deg, transparent, rgba(255,255,255,.18), transparent);
+    margin:0;
+  }
+  .divider .diamond{
+    width:6px; height:6px; background:var(--accent); transform:rotate(45deg); flex:none;
+    box-shadow:0 0 9px var(--accent);
+  }
+
+  .rows{ padding:.48rem .75rem .85rem; }
+  .row{
+    display:flex; align-items:center; gap:.72rem;
+    padding:.62rem .65rem;
+    min-height:3.55rem;
+    border:1px solid rgba(255,255,255,.055);
+    border-left:2px solid color-mix(in srgb, var(--accent) 70%, transparent);
+    border-radius:6px;
+    background:linear-gradient(100deg, color-mix(in srgb, var(--accent) 8%, rgba(255,255,255,.025)), rgba(255,255,255,.018));
+    transition:background .18s ease, border-color .18s ease, transform .18s ease;
+  }
+  .row + .row{ margin-top:.38rem; }
+  .row:hover{
+    background:linear-gradient(100deg, color-mix(in srgb, var(--accent) 15%, rgba(255,255,255,.035)), rgba(255,255,255,.025));
+    border-color:color-mix(in srgb, var(--accent) 32%, transparent);
+    transform:translateX(2px);
+  }
+  .role-icon{
+    flex:none; width:1.55rem; height:1.55rem;
+    display:flex; align-items:center; justify-content:center;
+    color:var(--accent);
+    filter:drop-shadow(0 0 5px color-mix(in srgb, var(--accent) 35%, transparent));
+  }
+  .role-icon svg{ width:100%; height:100%; }
+  .role-label{
+    flex:none; width:2.7rem;
+    font-family:'Oswald',sans-serif; font-weight:600; font-size:.67rem;
+    letter-spacing:.1em; color:var(--muted); text-transform:uppercase;
+  }
+  .names{ flex:1; min-width:0; }
+  .real-name{
+    font-family:'Rajdhani',sans-serif; font-weight:700; font-size:1.03rem;
+    color:var(--text); line-height:1.12;
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+  }
+  .username{
+    font-family:'JetBrains Mono',monospace; font-size:.67rem; color:var(--accent);
+    line-height:1.3; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+  }
+
+  /* El equipo rojo y el azul son espejos: mismo tamaño, jerarquía y cantidad de espacios. */
+  .left-team .row{ border-left-color:var(--accent); }
+  .right-team .panel-header{
+    padding-left:1.3rem; padding-right:1.5rem; text-align:right;
+    background:linear-gradient(255deg, color-mix(in srgb, var(--accent) 17%, transparent), transparent 76%);
+  }
+  .right-team .panel-header::before{ left:auto; right:0; }
+  .right-team .panel-header::after{ right:auto; left:-1.4rem; }
+  .right-team .row{
+    flex-direction:row-reverse;
+    border-left:1px solid rgba(255,255,255,.055);
+    border-right:2px solid color-mix(in srgb, var(--accent) 70%, transparent);
+    background:linear-gradient(260deg, color-mix(in srgb, var(--accent) 8%, rgba(255,255,255,.025)), rgba(255,255,255,.018));
+  }
+  .right-team .row:hover{
+    transform:translateX(-2px);
+    background:linear-gradient(260deg, color-mix(in srgb, var(--accent) 15%, rgba(255,255,255,.035)), rgba(255,255,255,.025));
+  }
+  .right-team .names{ text-align:right; }
+
+  .center-stage{
+    position:relative; z-index:2;
+    flex:0 0 clamp(7.8rem,10vw,11.5rem);
+    width:clamp(7.8rem,10vw,11.5rem);
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    gap:1.15rem;
+  }
+  .owl-frame{
+    position:relative;
+    isolation:isolate;
+    width:clamp(7.2rem,9.5vw,10.5rem);
+    aspect-ratio:194.19 / 205;
+    display:flex; align-items:center; justify-content:center;
+    border-radius:48% 48% 44% 44%;
+    background:radial-gradient(ellipse at 50% 45%, rgba(255,255,255,.08), rgba(0,0,0,.94) 70%);
+    border:1px solid rgba(255,255,255,.2);
+    box-shadow:0 0 28px rgba(0,0,0,.6), inset 0 0 24px rgba(255,255,255,.04);
+  }
+  /* Aro dual animado: los segmentos rojo y azul orbitan al búho sin mover el logo. */
+  .owl-frame::before{
+    content:''; position:absolute; inset:-9px;
+    border:2px solid transparent;
+    border-radius:50%;
+    background:
+      linear-gradient(transparent,transparent) padding-box,
+      conic-gradient(from 0deg,
+        transparent 0deg 22deg,
+        var(--red) 42deg 138deg,
+        transparent 158deg 202deg,
+        var(--blue) 222deg 318deg,
+        transparent 338deg 360deg) border-box;
+    transform:rotate(-22deg);
+    animation:owl-orbit 7.5s linear infinite;
+    filter:drop-shadow(0 0 4px rgba(255,13,13,.48)) drop-shadow(0 0 5px rgba(47,128,237,.42));
+    pointer-events:none;
+    z-index:0;
+    will-change:transform;
+  }
+  /* Un aro fino fijo mantiene el marco definido mientras los colores giran. */
+  .owl-frame::after{
+    content:''; position:absolute; inset:-2px;
+    border:1px solid rgba(255,255,255,.2);
+    border-radius:50%;
+    box-shadow:0 0 12px rgba(255,255,255,.06);
+    pointer-events:none;
+    z-index:0;
+  }
+  @keyframes owl-orbit{
+    from{transform:rotate(-22deg);}
+    to{transform:rotate(338deg);}
+  }
+  .owl-frame img{
+    position:relative; z-index:1;
+    width:78%; height:84%; object-fit:contain;
+    filter:drop-shadow(0 0 10px rgba(255,255,255,.17));
+  }
+  @media (prefers-reduced-motion: reduce){
+    .owl-frame::before{animation:none;}
+  }
+  .vs-badge{
+    display:flex; align-items:center; justify-content:center; gap:.65rem;
+    min-width:7.3rem; padding:.43rem .85rem;
+    font-family:'Oswald',sans-serif; font-weight:700; font-size:1.3rem;
+    color:var(--text); letter-spacing:.09em;
+    border:1px solid rgba(255,255,255,.3);
+    border-radius:7px;
+    background:linear-gradient(100deg, rgba(255,13,13,.2), rgba(0,0,0,.94) 49%, rgba(47,128,237,.22));
+    box-shadow:0 0 18px rgba(0,0,0,.35);
+  }
+  .vs-badge .diamond{
+    width:6px; height:6px; transform:rotate(45deg); flex:none;
+  }
+  .vs-badge .diamond:first-child{ background:var(--red); box-shadow:0 0 8px var(--red); }
+  .vs-badge .diamond:last-child{ background:var(--blue); box-shadow:0 0 8px var(--blue); }
+  .empty{
+    font-family:'Oswald',sans-serif; color:var(--muted); font-size:.95rem;
+    letter-spacing:.05em; text-align:center; padding:1.5rem;
+  }
+
+  @media (max-width:900px){
+    #app{gap:.65rem; padding-left:1rem; padding-right:1rem;}
+    .center-stage{flex-basis:7.2rem; width:7.2rem;}
+    .owl-frame{width:6.2rem;}
+    .rows{padding:.4rem .5rem .65rem;}
+    .row{gap:.45rem; padding:.48rem .42rem;}
+  }
+  @media (max-width:620px){
+    #app{gap:.4rem; padding:4.2rem .4rem .4rem;}
+    .panel{flex-basis:0;}
+    .center-stage{flex-basis:5.6rem; width:5.6rem; gap:.7rem;}
+    .owl-frame{width:4.7rem;}
+    .panel-header{padding:.72rem .65rem .6rem .9rem;}
+    .right-team .panel-header{padding:.72rem .9rem .6rem .65rem;}
+    .team-name{font-size:.9rem;}
+    .team-sub{font-size:.43rem;}
+    .role-label{display:none;}
+    .role-icon{width:1.1rem;height:1.1rem;}
+    .real-name{font-size:.8rem;}
+    .username{font-size:.48rem;}
+    .rows{padding:.35rem .28rem .55rem;}
+    .row{gap:.3rem; padding:.42rem .25rem; min-height:2.9rem;}
+    .vs-badge{min-width:4.8rem; font-size:.95rem; padding:.33rem .4rem; gap:.4rem;}
+  }
+</style>
+</head>
+<body>
+
+<div id="app" class="show"></div>
+
+<script>
+/* ======================= CONFIGURACIÓN ======================= */
+const CONFIG = {
+  // "json"  -> lee un archivo local (players.json) que editás a mano
+  // "sheet" -> lee un Google Sheet publicado en la web como CSV
+  source: "json",
+
+  jsonUrl: "./players.json",
+
+  // Pegá aquí el link de "Publicar en la web" -> CSV de tu Google Sheet
+  // (Archivo > Compartir > Publicar en la web > formato CSV)
+  sheetCsvUrl: "",
+
+  // Cada cuántos milisegundos vuelve a leer los datos (5000 = 5s)
+  refreshMs: 5000,
+
+  showLiveBadge: true
+};
+/* =============================================================== */
+
+const ROLE_ORDER = ['top','jungla','mid','adc','support'];
+
+const ROLE_ALIASES = {
+  top:'top',
+  jungla:'jungla', jungle:'jungla', jng:'jungla', jg:'jungla',
+  mid:'mid', medio:'mid',
+  adc:'adc', bot:'adc', bottom:'adc', tirador:'adc', carry:'adc',
+  support:'support', sup:'support', soporte:'support', soport:'support'
+};
+
+const ROLE_META = {
+  top: { label:'TOP', icon:`<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M10 2 L17 5 V11 C17 16 13 18 10 19 C7 18 3 16 3 11 V5 Z" stroke-linejoin="round"/></svg>` },
+  jungla: { label:'JNG', icon:`<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 4.5 L8 2.5 L12 4.5 L17 2.5 V15.5 L12 17.5 L8 15.5 L3 17.5 Z" stroke-linejoin="round"/><path d="M8 2.5 V15.5 M12 4.5 V17.5" stroke-linecap="round"/><path d="M5.2 12.8 L8.2 9.4 L11.1 11 L15 6.2" stroke-linecap="round" stroke-linejoin="round"/><circle cx="5.2" cy="12.8" r="1" fill="currentColor" stroke="none"/><circle cx="15" cy="6.2" r="1" fill="currentColor" stroke="none"/></svg>` },
+  mid: { label:'MID', icon:`<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 17 C3 9 9 3 17 3 C17 11 11 17 3 17 Z" stroke-linejoin="round"/><path d="M5.5 14.5 L14 6" stroke-linecap="round"/></svg>` },
+  adc: { label:'ADC', icon:`<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="10" cy="10" r="6.2"/><line x1="10" y1="0.8" x2="10" y2="3.4"/><line x1="10" y1="16.6" x2="10" y2="19.2"/><line x1="0.8" y1="10" x2="3.4" y2="10"/><line x1="16.6" y1="10" x2="19.2" y2="10"/><circle cx="10" cy="10" r="1" fill="currentColor" stroke="none"/></svg>` },
+  support: { label:'SUP', icon:`<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M10 17.2 C10 17.2 3 12.3 3 7.6 C3 4.8 5.2 3.2 7.3 3.2 C8.6 3.2 9.6 3.9 10 4.9 C10.4 3.9 11.4 3.2 12.7 3.2 C14.8 3.2 17 4.8 17 7.6 C17 12.3 10 17.2 10 17.2 Z" stroke-linejoin="round"/></svg>` }
+};
+
+const app = document.getElementById('app');
+
+function stripAccents(s){
+  return s.normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+}
+
+function normalizeRole(raw){
+  const k = stripAccents((raw||'').toString().trim().toLowerCase());
+  return ROLE_ALIASES[k] || k;
+}
+
+/* ---------- Parser de CSV (soporta comillas y comas dentro de campos) ---------- */
+function parseCSV(text){
+  const rows = []; let row = [], field = '', inQuotes = false;
+  for (let i=0;i<text.length;i++){
+    const c = text[i];
+    if (inQuotes){
+      if (c === '"'){
+        if (text[i+1] === '"'){ field += '"'; i++; } else inQuotes = false;
+      } else field += c;
+    } else {
+      if (c === '"') inQuotes = true;
+      else if (c === ',') { row.push(field); field=''; }
+      else if (c === '\n' || c === '\r'){
+        if (c === '\r' && text[i+1] === '\n') i++;
+        row.push(field); field=''; rows.push(row); row=[];
+      } else field += c;
+    }
+  }
+  if (field.length || row.length){ row.push(field); rows.push(row); }
+  return rows.filter(r => r.length > 1 || (r[0] && r[0].trim() !== ''));
+}
+
+function csvToTeams(text){
+  const rows = parseCSV(text);
+  if (!rows.length) return [];
+  const header = rows[0].map(h => stripAccents(h.trim().toLowerCase()));
+  const idx = {
+    team: header.indexOf('team'),
+    color: header.indexOf('teamcolor'),
+    role: header.indexOf('role'),
+    realName: header.indexOf('realname'),
+    username: header.indexOf('username')
+  };
+  const map = new Map();
+  for (let i=1;i<rows.length;i++){
+    const r = rows[i];
+    if (!r || idx.team < 0 || !r[idx.team]) continue;
+    const tName = r[idx.team].trim();
+    if (!tName) continue;
+    if (!map.has(tName)) map.set(tName, { name:tName, color:(idx.color>=0 && r[idx.color]) ? r[idx.color].trim() : '', players:[] });
+    map.get(tName).players.push({
+      role: idx.role>=0 ? (r[idx.role]||'').trim() : '',
+      realName: idx.realName>=0 ? (r[idx.realName]||'').trim() : '',
+      username: idx.username>=0 ? (r[idx.username]||'').trim() : ''
+    });
+  }
+  return Array.from(map.values());
+}
+
+/* ---------- Carga de datos ---------- */
+async function loadTeams(){
+  if (CONFIG.source === 'sheet' && CONFIG.sheetCsvUrl){
+    const res = await fetch(CONFIG.sheetCsvUrl, { cache:'no-store' });
+    if (!res.ok) throw new Error('No se pudo leer el Google Sheet');
+    const text = await res.text();
+    return csvToTeams(text);
+  }
+  const res = await fetch(CONFIG.jsonUrl, { cache:'no-store' });
+  if (!res.ok) throw new Error('No se pudo leer players.json');
+  const data = await res.json();
+  return data.teams || [];
+}
+
+/* ---------- Render ---------- */
+function sortPlayers(players){
+  return [...players].sort((a,b)=>{
+    const ra = ROLE_ORDER.indexOf(normalizeRole(a.role));
+    const rb = ROLE_ORDER.indexOf(normalizeRole(b.role));
+    return (ra<0?99:ra) - (rb<0?99:rb);
+  });
+}
+
+function renderPanel(team, side){
+  // Colores fijos por lado para mantener la misma identidad visual en todos los enfrentamientos.
+  const accent = side === 'right' ? 'var(--blue)' : 'var(--red)';
+  const players = sortPlayers(team.players || []);
+  const rowsHtml = players.map(p=>{
+    const key = normalizeRole(p.role);
+    const meta = ROLE_META[key] || { label:(p.role||'?').slice(0,3).toUpperCase(), icon:'' };
+    return `
+      <div class="row">
+        <span class="role-icon">${meta.icon}</span>
+        <span class="role-label">${meta.label}</span>
+        <span class="names">
+          <div class="real-name">${escapeHtml(p.realName || '—')}</div>
+          <div class="username">@${escapeHtml(p.username || '—')}</div>
+        </span>
+      </div>`;
+  }).join('');
+
+  return `
+    <div class="panel team-panel ${side === 'right' ? 'right-team' : 'left-team'}" style="--accent:${accent}">
+      <div class="panel-header">
+        <p class="team-name">${escapeHtml(team.name || 'Equipo')}</p>
+        <p class="team-sub">ROSTER · LEAGUE OF LEGENDS</p>
+      </div>
+      <div class="divider"><hr><span class="diamond"></span><hr></div>
+      <div class="rows">${rowsHtml || '<div class="empty">Sin jugadores cargados</div>'}</div>
+    </div>`;
+}
+
+function escapeHtml(s){
+  return s.toString().replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+function render(teams){
+  let html = '';
+  if (CONFIG.showLiveBadge){
+    html += `<div class="live-badge"><span class="live-dot"></span>EN VIVO</div>`;
+  }
+  if (!teams || teams.length === 0){
+    html += `<div class="panel"><div class="empty">Cargando datos del roster…</div></div>`;
+  } else if (teams.length === 1){
+    html += renderPanel(teams[0], 'left');
+  } else {
+    html += renderPanel(teams[0], 'left');
+    html += `<div class="center-stage">
+      <div class="owl-frame"><img src="./owl-eunlp.svg" alt="Búho eUNLP"></div>
+      <div class="vs-badge"><span class="diamond"></span>VS<span class="diamond"></span></div>
+    </div>`;
+    html += renderPanel(teams[1], 'right');
+  }
+  app.classList.remove('show'); app.classList.add('fade');
+  setTimeout(()=>{
+    app.innerHTML = html;
+    app.classList.remove('fade'); app.classList.add('show');
+  }, 120);
+}
+
+let hasRenderedOnce = false;
+let lastDataSignature = null;
+
+function renderError(){
+  app.classList.remove('fade'); app.classList.add('show');
+  app.innerHTML = `<div class="panel"><div class="empty">No se pudieron cargar los datos.<br><br>
+    Si abriste este archivo haciendo doble click (file://), es normal: el navegador bloquea la lectura de archivos locales por seguridad.<br><br>
+    Probalo dentro de OBS como Fuente de Navegador, o en tu navegador usando un servidor local.</div></div>`;
+}
+
+async function tick(){
+  try{
+    const teams = await loadTeams();
+    const signature = JSON.stringify(teams);
+    // Si los datos son idénticos a la última lectura, no se redibuja nada
+    // (esto evita el parpadeo de fade-out/fade-in cada vez que corre el intervalo).
+    if (signature === lastDataSignature) return;
+    lastDataSignature = signature;
+    hasRenderedOnce = true;
+    render(teams);
+  }catch(err){
+    console.error('Overlay roster:', err);
+    if (!hasRenderedOnce) renderError();
+  }
+}
+
+tick();
+setInterval(tick, CONFIG.refreshMs);
+</script>
+</body>
+</html>
